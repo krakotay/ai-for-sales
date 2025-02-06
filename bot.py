@@ -1,160 +1,80 @@
-# # chatgpt_sqlite_bot/bot.py
-# from chatgpt_postgres import sql_chatgpt, clear_conv
-# from config import TELEGRAM_BOT_TOKEN, logger
-# from aiogram import Bot, Dispatcher
-# import asyncio
-# from aiogram.types import Message
-# from aiogram.filters import Command
-# from aiogram import F
-# import tempfile
-# from aiogram.types import FSInputFile
-
-
-# admins = [461923889, 1009474519]
-
-# bot = Bot(token=TELEGRAM_BOT_TOKEN)
-# dp = Dispatcher()
-
-# # Настройка логирования
-
-
-# @dp.message(Command("start"), F.from_user.id.not_in(admins))
-# async def cmd_start(message: Message):
-#     await message.answer("Нет доступа")
-
-
-# @dp.message(Command("start"), F.from_user.id.in_(admins))
-# async def admin_start(message: Message):
-#     await message.answer(
-#         "Привет, админ!  Я бот для управления товарами. Просто отправь мне сообщение, и я помогу тебе"
-#     )
-
-
-# @dp.message(Command("clear"), F.from_user.id.in_(admins))
-# async def clear_history(message: Message):
-#     user_id = message.from_user.id
-#     res = clear_conv(user_id)
-#     await message.answer(
-#         f"Очистка переписки с тобой прошла {'успешно' if res else "неуспешно"}"
-#     )
-
-
-# @dp.message()
-# async def usual(message: Message):
-#     user_id = message.from_user.id
-#     try:
-#         answer, df = sql_chatgpt(message.text, user_id)
-#     except Exception as e:
-#         logger.error(e)
-#         answer = e
-#     if df is not None:
-#         temp_file = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-#         df.write_excel(temp_file.name)
-#         excel_table = FSInputFile(path=temp_file.name, filename="data.xlsx")
-#         await message.answer_document(excel_table)
-#         temp_file.close()
-#     await message.answer(f"{answer}")
-
-
-# async def main():
-#     await dp.start_polling(bot)
-
-
-# if __name__ == "__main__":
-#     asyncio.run(main())
 import asyncio
-from aiogram import Bot, Dispatcher, types, F
+from typing import List
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+
+# Импортируем наших агентов (seller_agent, sql_agent) – они уже сконфигурированы
+from sql_agents import seller_agent, sql_agent
 from config import TELEGRAM_BOT_TOKEN, logger
-import tempfile
-from aiogram.types import FSInputFile
 
-# Предположим, что sql_chatgpt и clear_conv уже импортированы из соответствующих модулей
-from chatgpt_postgres import sql_chatgpt, clear_conv
+# Импортируем нужные классы из autogen_agentchat
+from autogen_agentchat.teams import Swarm
+from autogen_agentchat.conditions import HandoffTermination
+from autogen_agentchat.messages import HandoffMessage, ChatMessage, TextMessage
 
-admins = [461923889, 1009474519]
+termination = HandoffTermination(target="user")
 
+# Инициализируем команду (swarm) с нашими агентами
+team = Swarm([seller_agent, sql_agent], termination_condition=termination)
+
+# Словарь для хранения состояния диалога по каждому Telegram-чату.
+# Здесь мы будем сохранять последний агентский HandoffMessage (то есть сообщение,
+# которое сигнализирует, что агент ожидает ввод от пользователя)
+# conversation_states: dict[int, ChatMessage] = {}
+
+
+def get_last_text_message(messages: List[ChatMessage]) -> TextMessage:
+    """
+    Функция проходит по списку сообщений (от последнего к первому) и возвращает первое
+    встретившееся сообщение типа TextMessage.
+    """
+    for msg in reversed(messages):
+        if isinstance(msg, TextMessage):
+            return msg
+    return None  # если такого сообщения нет (хотя, как правило, оно должно быть)
+
+
+# --------------------------------------------------------------------------------
+# Telegram бот
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
 
-# Словари для хранения состояния по пользователям
-user_buffers = {}   # user_id -> list of messages
-user_tasks = {}     # user_id -> asyncio.Task
 
-TIMEOUT = 10  # время ожидания в секундах
+@dp.message(Command("start"))
+async def start_handler(message: types.Message):
+    # chat_id = message.chat.id
+    # При команде /start сбрасываем состояние (старую сессию) и начинаем новый диалог
+    # conversation_states.pop(chat_id, None)
+    await message.answer("Привет! Напиши, что тебя интересует. Я передам это агентам.")
 
-@dp.message(Command("start"), F.from_user.id.not_in(admins))
-async def cmd_start(message: types.Message):
-    await message.answer("Нет доступа")
 
-@dp.message(Command("start"), F.from_user.id.in_(admins))
-async def admin_start(message: types.Message):
-    await message.answer(
-        "Привет, админ! Я бот для управления товарами. Просто отправь мне сообщение, и я помогу тебе"
-    )
+@dp.message(Command("reset"))
+async def reset_handler(message: types.Message):
+    # chat_id = message.chat.id
+    # conversation_states.pop(chat_id, None)
+    team.reset()
+    await message.answer("Диалог сброшен. Можешь начинать заново.")
 
-@dp.message(Command("clear"), F.from_user.id.in_(admins))
-async def clear_history(message: types.Message):
-    user_id = message.from_user.id
-    res = clear_conv(user_id)
-    await message.answer(
-        f"Очистка переписки с тобой прошла {'успешно' if res else 'неуспешно'}"
-    )
-
-async def process_user_messages(user_id: int):
-    """Функция, которая вызывается по истечении таймера и обрабатывает накопленные сообщения пользователя."""
-    # Объединяем сообщения через перевод строки
-    messages = user_buffers.get(user_id, [])
-    combined_text = "\n".join(messages)
-
-    # Очищаем буфер и удаляем задачу из словаря
-    user_buffers.pop(user_id, None)
-    user_tasks.pop(user_id, None)
-
-    # Обработка объединённого текста
-    try:
-        answer, df = sql_chatgpt(combined_text, user_id)
-    except Exception as e:
-        logger.error(e)
-        answer = str(e)
-        df = None
-
-    # Отправка ответа и файла (если есть)
-    if df is not None:
-        temp_file = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-        df.write_excel(temp_file.name)
-        excel_table = FSInputFile(path=temp_file.name, filename="data.xlsx")
-        await bot.send_document(chat_id=user_id, document=excel_table)
-        temp_file.close()
-
-    await bot.send_message(chat_id=user_id, text=f"{answer}")
 
 @dp.message()
-async def accumulate_messages(message: types.Message):
-    user_id = message.from_user.id
+async def message_handler(message: types.Message):
+    # chat_id = message.chat.id
+    user_text = message.text.strip()
 
-    # Добавляем новое сообщение в буфер
-    if user_id not in user_buffers:
-        user_buffers[user_id] = []
-    user_buffers[user_id].append(message.text)
+    task_result = await team.run(
+        task=HandoffMessage(
+            source="user", target=seller_agent.name, content=user_text
+        )
+    )
+    last_text = get_last_text_message(task_result.messages)
+    await message.answer(f"{last_text.source}: {last_text.content}")
 
-    # Если есть ранее запущенная задача таймера — отменяем её
-    if user_id in user_tasks:
-        user_tasks[user_id].cancel()
 
-    # Запускаем новую задачу таймера для данного пользователя
-    async def timer():
-        try:
-            await asyncio.sleep(TIMEOUT)
-            await process_user_messages(user_id)
-        except asyncio.CancelledError:
-            # Если таймер был отменён, просто выходим
-            pass
-
-    user_tasks[user_id] = asyncio.create_task(timer())
 
 async def main():
     await dp.start_polling(bot)
 
+
 if __name__ == "__main__":
+    print("Бот запущен. Жду сообщений...")
     asyncio.run(main())
