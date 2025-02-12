@@ -76,6 +76,12 @@ def find_similar(query, embeddings, questions, top_n=5, threshold=0.2):
 
 
 def get_examples(query: str) -> str:
+    """
+    Функция, чтобы узнать список вопросов, что надо задать по каждому товару
+        query (str): сам товар (бампер, фары и т.д.).
+
+    """
+
     embeddings: List[float] = DF["embeddings"]
     questions: List[str] = DF["questions"].to_list()
     similar_questions = find_similar(query, embeddings, questions, threshold=0.2)
