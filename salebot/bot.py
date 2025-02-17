@@ -36,7 +36,9 @@ def get_last_text_message(
     logger.warning("There're candidates!")
     logger.warning(candidates)
     if len(candidates) >= 2:
-        return candidates[-2]  # предпоследнее сообщение
+        cand = candidates[-2]
+        cand.content += candidates[-1].content
+        return cand # предпоследнее сообщение
     elif candidates:
         return candidates[-1]  # только одно сообщение, возвращаем его
     return None  # ни одного сообщения не найдено

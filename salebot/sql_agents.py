@@ -29,6 +29,7 @@ system_content = (
     "Узнавай, как можешь обращаться к user. В конце каждого сообщения к user задавай тематический вопрос. "
     "Если тебе нужно узнать наличие товаров на складе, а также их цены, обязательно напиши sql_agent, он передаст всю необходимую информацию"
     "Если она устроит, you must write to user and must handoff to the user, "
+    "user НЕ может видеть то, что написал sql agent, он видит только ТВОИ сообщения."
     "используй get_examples, там список вопросов, что тебе нужно задать по каждому товару, "
     "If you need information from the user, you must first send your message, then you can handoff to the user."
     # "В конце каждого сообщения спроси что-то важное у клиента."
@@ -52,6 +53,5 @@ sql_agent = AssistantAgent(
     Ты можешь использовать ask_database tool для работы напрямую с ней.
     Структура таблицы: {database_schema_string}
     {items_info}
-    Известные тебе названия таблиц: warehouse
     Если тебе нужна уточнающая информация, ты обязан спросить её у alexey_agent (это агент что общается напрямую с пользователями), then you can handoff to the alexey_agent"""
 )

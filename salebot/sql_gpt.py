@@ -103,7 +103,7 @@ def list_warehouse_items() -> str:
             name, value = row
             table_rows += f"| {name} | {value} |\n"
 
-        markdown_table = header + table_rows
+        markdown_table = header + table_rows  + "```\n"
         return markdown_table
 
     except SQLAlchemyError as e:
