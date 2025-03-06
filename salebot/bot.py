@@ -12,7 +12,7 @@ from autogen_agentchat.teams import Swarm
 from autogen_agentchat.conditions import HandoffTermination
 from autogen_agentchat.messages import HandoffMessage, ChatMessage, TextMessage
 
-TIMEOUT = 3
+TIMEOUT = 10
 
 termination = HandoffTermination(target="user")
 
@@ -61,7 +61,9 @@ async def ping(message: types.Message):
     await message.answer("Я тут!")
 
 
-@dp.message(Command("reset"), F.chat.id.in_(admins))
+@dp.message(Command("reset"), 
+            # F.chat.id.in_(admins)
+            )
 async def reset_handler(message: types.Message):
     # chat_id = message.chat.id
     # conversation_states.pop(chat_id, None)
@@ -125,7 +127,7 @@ async def process_accumulated_message(chat_id: int, user_id: int):
 
 
 @dp.message(
-    F.chat.id.in_(admins)
+    # F.chat.id.in_(admins)
 )  # или @dp.message_handler() в зависимости от версии aiogram
 async def message_handler(message: types.Message):
     chat_id = message.chat.id

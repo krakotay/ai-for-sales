@@ -15,8 +15,8 @@ load_dotenv()
 os.environ["FORCE_COLOR"] = "1"
 
 logging.getLogger(ROOT_LOGGER_NAME).setLevel(logging.ERROR)
-logging.getLogger(EVENT_LOGGER_NAME).setLevel(logging.ERROR)
-logging.getLogger(TRACE_LOGGER_NAME).setLevel(logging.ERROR)
+logging.getLogger(EVENT_LOGGER_NAME).setLevel(logging.INFO)
+logging.getLogger(TRACE_LOGGER_NAME).setLevel(logging.INFO)
 logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)

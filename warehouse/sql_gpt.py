@@ -20,6 +20,17 @@ ENGINE = create_engine(
     pool_pre_ping=True
 )
 
+def push_excel_to_db(path: str):
+    df = pl.read_excel(path)
+    DB_NAME = "warehouse"
+    try:
+        with ENGINE.begin() as conn:
+            df.write_database(DB_NAME, conn, if_table_exists='replace')
+        return "Успех!"
+    except Exception as e:
+        return f'Ошибка: {e}'
+
+
 def sql_to_excel(query: str):
     """
     Функция чтобы отправить postgreSQL сразу в Excel

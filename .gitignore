@@ -2,3 +2,4 @@
 *.env
 *.xlsx
 *.parquet
+*__pycache__/

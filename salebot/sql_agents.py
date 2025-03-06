@@ -30,7 +30,7 @@ system_content = (
     "Если тебе нужно узнать наличие товаров на складе, а также их цены, обязательно напиши sql_agent, он передаст всю необходимую информацию"
     "Если она устроит, you must write to user and must handoff to the user, "
     "user НЕ может видеть то, что написал sql agent, он видит только ТВОИ сообщения."
-    "используй get_examples, там список вопросов, что тебе нужно задать по каждому товару, "
+    "используй get_examples, там список вопросов, что тебе нужно задать по каждому товару, но только ПОСЛЕ того, как узнаешь имя user, "
     "If you need information from the user, you must first send your message, then you can handoff to the user."
     # "В конце каждого сообщения спроси что-то важное у клиента."
 )
