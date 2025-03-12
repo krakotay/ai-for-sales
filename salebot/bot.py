@@ -4,20 +4,26 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram import F
 
-from sql_agents import alexey_agent, sql_agent
+from sql_agents import orchestrator_agent, synthesizer_agent
 from config import TELEGRAM_BOT_TOKEN, logger
+from agents import (
+    Agent,
+    HandoffOutputItem,
+    ItemHelpers,
+    MessageOutputItem,
+    RunContextWrapper,
+    Runner,
+    ToolCallItem,
+    ToolCallOutputItem,
+    TResponseInputItem,
+    function_tool,
+    handoff,
+    trace,
+    set_default_openai_key
+)
 
 # Импортируем нужные классы из autogen_agentchat
-from autogen_agentchat.teams import Swarm
-from autogen_agentchat.conditions import HandoffTermination
-from autogen_agentchat.messages import HandoffMessage, ChatMessage, TextMessage
-
-TIMEOUT = 10
-
-termination = HandoffTermination(target="user")
-
-# Инициализируем команду (swarm) с нашими агентами
-team = Swarm([alexey_agent, sql_agent], termination_condition=termination)
+TIMEOUT = 3
 
 # Словарь для хранения состояния диалога по каждому Telegram-чату.
 # Здесь мы будем сохранять последний агентский HandoffMessage (то есть сообщение,
@@ -25,23 +31,6 @@ team = Swarm([alexey_agent, sql_agent], termination_condition=termination)
 # conversation_states: dict[int, ChatMessage] = {}
 
 
-def get_last_text_message(
-    messages: List[ChatMessage], bot_name=alexey_agent.name
-) -> Optional[TextMessage]:
-    candidates = [
-        msg
-        for msg in messages
-        if isinstance(msg, TextMessage) and msg.source == bot_name
-    ]
-    logger.warning("There're candidates!")
-    logger.warning(candidates)
-    if len(candidates) >= 2:
-        cand = candidates[-2]
-        cand.content += candidates[-1].content
-        return cand # предпоследнее сообщение
-    elif candidates:
-        return candidates[-1]  # только одно сообщение, возвращаем его
-    return None  # ни одного сообщения не найдено
 
 
 # --------------------------------------------------------------------------------
@@ -61,19 +50,20 @@ async def ping(message: types.Message):
     await message.answer("Я тут!")
 
 
-@dp.message(Command("reset"), 
-            # F.chat.id.in_(admins)
-            )
-async def reset_handler(message: types.Message):
-    # chat_id = message.chat.id
-    # conversation_states.pop(chat_id, None)
-    await team.reset()
-    await message.answer("Диалог сброшен. Можешь начинать заново.")
+# @dp.message(Command("reset"), 
+#             # F.chat.id.in_(admins)pip install openai-agents
+
+#             )
+# async def reset_handler(message: types.Message):
+#     # chat_id = message.chat.id
+#     # conversation_states.pop(chat_id, None)
+#     await team.reset()
+#     await message.answer("Диалог сброшен. Можешь начинать заново.")
 
 
 # Глобальный словарь для хранения накопленных сообщений по chat_id
 pending_messages: Dict[int, Dict[str, Union[str, asyncio.Task]]] = {}
-
+conversation_history = {}
 
 async def process_accumulated_message(chat_id: int, user_id: int):
     try:
@@ -83,44 +73,34 @@ async def process_accumulated_message(chat_id: int, user_id: int):
         accumulated_text = pending_messages[chat_id]["text"]
         # Удаляем запись, так как сообщение обрабатывается
         del pending_messages[chat_id]
+        input_items = conversation_history.get(str(chat_id)) or []
+        with trace("Customer service"):
+            input_items.append({"content": accumulated_text, "role": "user"})
+            result = await Runner.run(orchestrator_agent, input_items)
+
+            for new_item in result.new_items:
+                agent_name = new_item.agent.name
+                if isinstance(new_item, MessageOutputItem):
+                    print(f"{agent_name}: {ItemHelpers.text_message_output(new_item)}")
+                elif isinstance(new_item, HandoffOutputItem):
+                    print(
+                        f"Handed off from {new_item.source_agent.name} to {new_item.target_agent.name}"
+                    )
+                elif isinstance(new_item, ToolCallItem):
+                    print(f"{agent_name}: Calling a tool")
+                elif isinstance(new_item, ToolCallOutputItem):
+                    print(f"{agent_name}: Tool call output: {new_item.output}")
+                else:
+                    print(f"{agent_name}: Skipping item: {new_item.__class__.__name__}")
+            synthesizer_result = await Runner.run(
+                synthesizer_agent, result.to_input_list()
+            )
+            print(f"\n\nFinal response:\n{synthesizer_result.final_output}")
+            input_items = synthesizer_result.to_input_list()
+            conversation_history[str(chat_id)] = input_items
+            await bot.send_message(chat_id, synthesizer_result.final_output)
 
         # Отправляем накопленный текст в team.run и получаем ответ
-        task_result = await team.run(
-            task=HandoffMessage(
-                source="user", target=alexey_agent.name, content=accumulated_text
-            )
-        )
-        last_text = get_last_text_message(task_result.messages)
-        logger.warning("messages are:")
-        input_tokens = 0
-        output_tokens = 0
-        for msg in task_result.messages:
-            logger.debug(msg.model_dump_json(indent=4))
-            if msg.models_usage:
-                input_tokens += msg.models_usage.prompt_tokens
-                output_tokens += msg.models_usage.completion_tokens
-        logger.warning(
-            f"Потрачено токенов\ninput_tokens {input_tokens}\noutput_tokens {output_tokens}"
-        )
-        # logger.debug(json.dumps(task_result.messages.__dict__, ensure_ascii=False, indent=5))
-        if last_text:
-            # Отправляем ответ пользователю
-            await bot.send_message(
-                chat_id,
-                (
-                    f"{last_text.source + "\n" if user_id in admins else ''}"
-                    f"{last_text.content.replace('alexey_agent', "Алексей")}"
-                    f"{
-                        f'\ninput_tokens {input_tokens}\noutput_tokens {output_tokens}'
-                        if user_id in admins
-                        else ''
-                    }"
-                ),
-            )
-        else:
-            await bot.send_message(
-                chat_id, "Ошибка на нашей стороне, попробуйте повторить вопрос"
-            )
     except asyncio.CancelledError:
         # Если задача была отменена (из-за нового сообщения) — просто выходим
         pass

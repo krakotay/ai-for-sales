@@ -6,13 +6,15 @@ import os
 import sqlparse
 from sqlparse.tokens import DML, DDL
 import polars as pl
+from agents import function_tool
+import logging
 from config import logger
 
 
-
 load_dotenv()
-
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
+# DATABASE_URL="postgresql://test_table_owner:10QRzBZLwSAe@ep-weathered-dew-a2hvty0f.eu-central-1.aws.neon.tech/database?sslmode=require"
+DATABASE_URL = ""
+tmpPostgres = urlparse(os.getenv("DATABASE_URL") or DATABASE_URL)
 
 ENGINE = create_engine(
     f"postgresql://{tmpPostgres.username}:{tmpPostgres.password}@{tmpPostgres.hostname}{tmpPostgres.path}?sslmode=require",
@@ -58,7 +60,7 @@ def is_allowed_query(query: str) -> bool:
         return False
 
     return True
-
+@function_tool
 def ask_database(query: str):
     """
     Функция для обращения к postgreSQL базе данных

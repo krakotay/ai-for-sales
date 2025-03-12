@@ -4,11 +4,13 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram import F
 from autogen_core import CancellationToken
+import io
+from aiogram.types import FSInputFile, KeyboardButton, ReplyKeyboardMarkup
 
 # Импортируем наших агентов (seller_agent, sql_agent) – они уже сконфигурированы
 from sql_agents import sql_agent
+from sql_gpt import push_excel_to_db
 from config import TELEGRAM_BOT_TOKEN, logger
-from aiogram.types import FSInputFile
 
 # Импортируем нужные классы из autogen_agentchat
 from autogen_agentchat.messages import (
@@ -24,10 +26,14 @@ dp = Dispatcher()
 admins = [461923889, 1009474519]
 
 
-
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
-    await message.answer("Привет! Я бот по работе со складом напрямую.")
+    # Создаем кнопки
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Выгрузить всю таблицу")]],
+        resize_keyboard=True
+    )
+    await message.answer("Привет! Я бот по работе со складом напрямую.", reply_markup=keyboard)
 
 
 @dp.message(Command("ping"))
@@ -35,7 +41,11 @@ async def ping(message: types.Message):
     await message.answer("Я тут!")
 
 
-@dp.message(Command("reset"), F.chat.id.in_(admins))
+
+
+@dp.message(Command("reset"), 
+            # F.chat.id.in_(admins)
+            )
 async def reset_handler(message: types.Message):
     await sql_agent.on_reset()
     await message.answer("Диалог сброшен. Можешь начинать заново.")
@@ -102,7 +112,8 @@ async def process_accumulated_message(chat_id: int, user_id: int):
 
 
 @dp.message(
-    F.chat.id.in_(admins)
+    # F.chat.id.in_(admins), 
+    ~F.document
 )  # или @dp.message_handler() в зависимости от версии aiogram
 async def message_handler(message: types.Message):
     chat_id = message.chat.id
@@ -123,6 +134,32 @@ async def message_handler(message: types.Message):
     pending_messages[chat_id]["task"] = asyncio.create_task(
         process_accumulated_message(chat_id, user_id)
     )
+@dp.message(F.document)
+async def push_excel(message: types.Message):
+    document = message.document
+    file_name: str = document.file_name
+    if file_name.endswith(".xlsx"):
+        file_info = await bot.get_file(document.file_id)
+        await bot.download_file(file_info.file_path, destination=f"excel/{file_name}")
+        await message.answer(push_excel_to_db(f"excel/{file_name}"))
+    else:
+        await message.answer(f'У вас {file_name}, мы ожидаем excel')
+
+
+@dp.message(F.text == "Выгрузить всю таблицу")
+async def export_all_data(message: types.Message):
+    response = await sql_agent.on_messages(
+        [TextMessage(content="выгрузи всю таблицу в excel", source="user")],
+        cancellation_token=CancellationToken(),
+    )
+    msgs = response.inner_messages
+    for message in msgs:
+        if message.type == "ToolCallExecutionEvent":
+            filename = message.content[-1].content
+            if filename.endswith(".xlsx"):
+                excel_table = FSInputFile(path=filename, filename=filename)
+                await bot.send_document(message.chat.id, excel_table)
+    await message.answer("Вот выгрузка всей таблицы!")
 
 
 async def main():
