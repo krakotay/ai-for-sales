@@ -35,17 +35,18 @@ async def ping(message: types.Message):
     await message.answer("Я тут!")
 
 
-
 # Глобальный словарь для хранения накопленных сообщений по chat_id
 pending_messages: Dict[int, Dict[str, Union[str, asyncio.Task]]] = {}
 
 # Глобальный словарь для хранения истории разговоров
 conversation_history = {}
 
+
 # Функция для очистки истории разговоров
 def clear_conversation_history():
     conversation_history.clear()
     logger.info("История разговоров очищена")
+
 
 async def process_accumulated_message(chat_id: int, user_id: int):
     try:
@@ -56,7 +57,7 @@ async def process_accumulated_message(chat_id: int, user_id: int):
         # Удаляем запись, так как сообщение обрабатывается
         del pending_messages[chat_id]
         input_items = conversation_history.get(str(chat_id)) or []
-        
+
         with trace("Customer service"):
             input_items.append({"content": accumulated_text, "role": "user"})
             result = await Runner.run(orchestrator_agent, input_items)
@@ -116,19 +117,27 @@ async def message_handler(message: types.Message):
 async def main():
     # Запускаем бота в режиме поллинга
     polling_task = asyncio.create_task(dp.start_polling(bot))
-    
+
     # Создаем и запускаем обработчик вебхуков
     webhook_handler = WebhookHandler(bot, dp)
-    
+
     # Устанавливаем функцию обратного вызова для очистки истории разговоров
     webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
-    
+
     # Запускаем вебхук-сервер в отдельном потоке
     import threading
-    webhook_thread = threading.Thread(target=webhook_handler.run)
+    from aiohttp import web
+
+    webhook_thread = threading.Thread(
+        target=web.run_app(
+            webhook_handler.app,
+            host=webhook_handler.WEB_SERVER_HOST,
+            port=webhook_handler.WEB_SERVER_PORT,
+        )
+    )
     webhook_thread.daemon = True
     webhook_thread.start()
-    
+
     # Ждем завершения задачи поллинга
     await polling_task
 

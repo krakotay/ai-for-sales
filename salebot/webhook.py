@@ -42,8 +42,8 @@ class WebhookHandler:
         """Устанавливает функцию обратного вызова для очистки истории разговоров"""
         self.clear_conversation_history_callback = callback
         
-    def run(self):
-        web.run_app(self.app, host=self.WEB_SERVER_HOST, port=self.WEB_SERVER_PORT)
+    # def run(self):
+    #     web.run_app(self.app, host=self.WEB_SERVER_HOST, port=self.WEB_SERVER_PORT)
 
     async def on_startup(self):
         await self.bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}")
