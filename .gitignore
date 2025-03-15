@@ -3,3 +3,6 @@
 *.xlsx
 *.parquet
 *__pycache__/
+*.csv
+*.json
+*.txt

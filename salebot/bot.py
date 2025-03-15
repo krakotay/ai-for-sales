@@ -3,37 +3,22 @@ from typing import Dict, List, Optional, Union
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram import F
-
+from webhook import WebhookHandler
 from sql_agents import orchestrator_agent, synthesizer_agent
 from config import TELEGRAM_BOT_TOKEN, logger
 from agents import (
-    Agent,
     HandoffOutputItem,
     ItemHelpers,
     MessageOutputItem,
-    RunContextWrapper,
     Runner,
     ToolCallItem,
     ToolCallOutputItem,
-    TResponseInputItem,
-    function_tool,
-    handoff,
     trace,
-    set_default_openai_key
 )
 
-# Импортируем нужные классы из autogen_agentchat
 TIMEOUT = 3
 
-# Словарь для хранения состояния диалога по каждому Telegram-чату.
-# Здесь мы будем сохранять последний агентский HandoffMessage (то есть сообщение,
-# которое сигнализирует, что агент ожидает ввод от пользователя)
-# conversation_states: dict[int, ChatMessage] = {}
 
-
-
-
-# --------------------------------------------------------------------------------
 # Telegram бот
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
@@ -50,20 +35,17 @@ async def ping(message: types.Message):
     await message.answer("Я тут!")
 
 
-# @dp.message(Command("reset"), 
-#             # F.chat.id.in_(admins)pip install openai-agents
-
-#             )
-# async def reset_handler(message: types.Message):
-#     # chat_id = message.chat.id
-#     # conversation_states.pop(chat_id, None)
-#     await team.reset()
-#     await message.answer("Диалог сброшен. Можешь начинать заново.")
-
 
 # Глобальный словарь для хранения накопленных сообщений по chat_id
 pending_messages: Dict[int, Dict[str, Union[str, asyncio.Task]]] = {}
+
+# Глобальный словарь для хранения истории разговоров
 conversation_history = {}
+
+# Функция для очистки истории разговоров
+def clear_conversation_history():
+    conversation_history.clear()
+    logger.info("История разговоров очищена")
 
 async def process_accumulated_message(chat_id: int, user_id: int):
     try:
@@ -74,6 +56,7 @@ async def process_accumulated_message(chat_id: int, user_id: int):
         # Удаляем запись, так как сообщение обрабатывается
         del pending_messages[chat_id]
         input_items = conversation_history.get(str(chat_id)) or []
+        
         with trace("Customer service"):
             input_items.append({"content": accumulated_text, "role": "user"})
             result = await Runner.run(orchestrator_agent, input_items)
@@ -131,7 +114,23 @@ async def message_handler(message: types.Message):
 
 
 async def main():
-    await dp.start_polling(bot)
+    # Запускаем бота в режиме поллинга
+    polling_task = asyncio.create_task(dp.start_polling(bot))
+    
+    # Создаем и запускаем обработчик вебхуков
+    webhook_handler = WebhookHandler(bot, dp)
+    
+    # Устанавливаем функцию обратного вызова для очистки истории разговоров
+    webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
+    
+    # Запускаем вебхук-сервер в отдельном потоке
+    import threading
+    webhook_thread = threading.Thread(target=webhook_handler.run)
+    webhook_thread.daemon = True
+    webhook_thread.start()
+    
+    # Ждем завершения задачи поллинга
+    await polling_task
 
 
 if __name__ == "__main__":
