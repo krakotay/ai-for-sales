@@ -41,9 +41,15 @@ class WebhookHandler:
     def set_clear_conversation_history_callback(self, callback):
         """Устанавливает функцию обратного вызова для очистки истории разговоров"""
         self.clear_conversation_history_callback = callback
-        
-    # def run(self):
-    #     web.run_app(self.app, host=self.WEB_SERVER_HOST, port=self.WEB_SERVER_PORT)
+    
+    async def start(self):
+        """Асинхронный метод для запуска веб-сервера"""
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, self.WEB_SERVER_HOST, self.WEB_SERVER_PORT)
+        await site.start()
+        print(f"Веб-сервер запущен на http://{self.WEB_SERVER_HOST}:{self.WEB_SERVER_PORT}")
+        return runner
 
     async def on_startup(self):
         await self.bot.set_webhook(f"{BASE_WEBHOOK_URL}{WEBHOOK_PATH}")

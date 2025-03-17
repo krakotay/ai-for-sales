@@ -6,7 +6,6 @@ from agents import Agent, function_tool, set_default_openai_key
 from dotenv import load_dotenv
 
 load_dotenv()
-
 items_list = list_warehouse_items()
 # Формируем строку со списком товаров
 if items_list:
@@ -36,25 +35,20 @@ def get_weather(city: str) -> str:
 sql_system_message = f"""You are an agent specialized in postresql work.
 Тебе нужно лишь работать с базой данных, передавая всю необходимую информацию.
 Ты можешь использовать ask_database tool для работы напрямую с ней.
+
 Структура таблицы: {database_schema_string}
 {items_info}
+всегда возвращай ответ со всеми столцами из таблицы, её срезом, в формате markdown.
+ВСЕГДА начинай предложение со слов 'Информирую SQL Agent (и только тебя), что:\n'
 """
-
+print(sql_system_message)
 sql_agent = Agent(
     name="SQL Agent",
     instructions=sql_system_message,
     handoff_description="SQL Database tool",
     tools=[ask_database],
-)
-orchestrator_agent = Agent(
-    name="orchestrator_agent",
-    instructions="Handoff to the appropriate agent when user ask the weather in city, and reverse answer. 'weather is sunny' reverse to 'weather is not sunny'",
-    tools=[
-        sql_agent.as_tool(
-            tool_name="ask_database_tool",
-            tool_description="humanize inputs and outputs from SQL database",
-        )
-    ],
+    model="o3-mini"
+
 )
 with open("prompt.json", "r", encoding="utf-8") as f:
     synthesizer_agent_json = BotJson(**json.load(f))
@@ -62,4 +56,17 @@ with open("prompt.json", "r", encoding="utf-8") as f:
 synthesizer_agent = Agent(
     name=synthesizer_agent_json.name,
     instructions=synthesizer_agent_json.personality + "\n" + synthesizer_agent_json.qa,
+    model="o3-mini"
+)
+orchestrator_agent = Agent(
+    name="orchestrator_agent",
+    instructions=f"ВСЕГДА начинай предложение со слов 'Информирую {synthesizer_agent_json.name} (и только тебя), что:\n'",
+    tools=[
+        sql_agent.as_tool(
+            tool_name="ask_database_tool",
+            tool_description="humanize inputs and outputs from SQL database",
+        )
+    ],
+    model="o3-mini"
+
 )

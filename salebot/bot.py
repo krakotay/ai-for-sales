@@ -74,6 +74,7 @@ async def process_accumulated_message(chat_id: int, user_id: int):
                     print(f"{agent_name}: Calling a tool")
                 elif isinstance(new_item, ToolCallOutputItem):
                     print(f"{agent_name}: Tool call output: {new_item.output}")
+
                 else:
                     print(f"{agent_name}: Skipping item: {new_item.__class__.__name__}")
             synthesizer_result = await Runner.run(
@@ -124,20 +125,9 @@ async def main():
     # Устанавливаем функцию обратного вызова для очистки истории разговоров
     webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
 
-    # Запускаем вебхук-сервер в отдельном потоке
-    import threading
-    from aiohttp import web
-
-    webhook_thread = threading.Thread(
-        target=web.run_app(
-            webhook_handler.app,
-            host=webhook_handler.WEB_SERVER_HOST,
-            port=webhook_handler.WEB_SERVER_PORT,
-        )
-    )
-    webhook_thread.daemon = True
-    webhook_thread.start()
-
+    # Запускаем веб-сервер асинхронно
+    await webhook_handler.start()
+    
     # Ждем завершения задачи поллинга
     await polling_task
 
