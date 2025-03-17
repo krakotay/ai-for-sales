@@ -1,12 +1,7 @@
 import logging
 from rich.logging import RichHandler
-# from rich import print
-# from dataclasses import dataclass
-import json
 import os
-from openai import OpenAI
 from dotenv import load_dotenv
-import sys
 
 load_dotenv()
 os.environ["FORCE_COLOR"] = "1"
