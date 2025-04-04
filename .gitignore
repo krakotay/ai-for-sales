@@ -6,3 +6,10 @@
 *.csv
 *.json
 *.txt
+*.gv
+*.png
+*.pdf
+*.html
+*.dot
+*.svg
+*.jpg

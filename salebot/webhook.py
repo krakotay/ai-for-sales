@@ -1,8 +1,9 @@
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-import json
-from sql_agents import synthesizer_agent_json, synthesizer_agent
+# import json
+from sql_agents import synthesizer_agent
+from prompt import personality, qa
 
 # Конфигурация
 BASE_WEBHOOK_URL = "http://127.0.0.1:8443"
@@ -65,9 +66,9 @@ class WebhookHandler:
     async def get_agent_settings(self, request):
         """Получение текущих настроек агента"""
         settings = {
-            "name": synthesizer_agent_json.name,
-            "personality": synthesizer_agent_json.personality,
-            "qa": synthesizer_agent_json.qa
+            "name": "synthesizer_agent",
+            "personality": personality,
+            "qa": qa
         }
         return web.json_response(settings)
     
@@ -86,17 +87,20 @@ class WebhookHandler:
                     )
             
             # Обновляем поля в объекте synthesizer_agent_json
-            if "personality" in data:
-                synthesizer_agent_json.personality = data["personality"]
-            if "qa" in data:
-                synthesizer_agent_json.qa = data["qa"]
+            synthesizer_agent.personality = data.get("personality", personality)
+            synthesizer_agent.qa = data.get("qa", qa)
+            
             
             # Обновляем инструкции в объекте synthesizer_agent
-            synthesizer_agent.instructions = synthesizer_agent_json.personality + "\n" + synthesizer_agent_json.qa
+            synthesizer_agent.instructions = personality + "\n" + qa
             
-            # Сохраняем изменения в файл prompt.json
-            with open("prompt.json", "w", encoding="utf-8") as f:
-                json.dump(synthesizer_agent_json.to_dict(), f, ensure_ascii=False, indent=4)
+            # Сохраняем изменения в файл prompt.py
+            with open("prompt.py", "w", encoding="utf-8") as f:
+                prompt_file_text = f'''
+personality = """{personality}"""
+qa = """{qa}"""
+'''
+                f.write(prompt_file_text)
             
             # Очищаем историю разговоров через callback
             if self.clear_conversation_history_callback:
@@ -106,9 +110,9 @@ class WebhookHandler:
                 "status": "success", 
                 "message": "Настройки агента успешно обновлены",
                 "settings": {
-                    "name": synthesizer_agent_json.name,
-                    "personality": synthesizer_agent_json.personality,
-                    "qa": synthesizer_agent_json.qa
+                    "name": 'synthesizer_agent',
+                    "personality": personality,
+                    "qa": qa
                 }
             })
         except Exception as e:
