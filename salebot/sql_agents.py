@@ -26,6 +26,8 @@ orchestrator_agent = Agent(
 
     """,
     model="o3-mini",
+    model_settings=ModelSettings(reasoning=Reasoning(effort="low")),
+
 )
 
 
@@ -40,4 +42,6 @@ synthesizer_agent = Agent(
     ```
     """,
     model="o3-mini",
+    tools=[send_second_message],
+    model_settings=ModelSettings(reasoning=Reasoning(effort='low'), tool_choice='required'), 
 )
