@@ -3,7 +3,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 # import json
 from sql_agents import synthesizer_agent
-from prompt import personality, qa
+from prompt import personality_orchestrator as personaity, qa
 
 # Конфигурация
 BASE_WEBHOOK_URL = "http://127.0.0.1:8443"
