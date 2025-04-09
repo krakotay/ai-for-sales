@@ -17,7 +17,7 @@ from agents import (
     trace,
 )
 
-TIMEOUT = 3
+TIMEOUT = 0
 
 
 # Telegram бот

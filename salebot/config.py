@@ -1,9 +1,10 @@
 import logging
 from rich.logging import RichHandler
 import os
-from dotenv import load_dotenv
+import tomllib
 
-load_dotenv()
+with open("config.toml", "rb") as f:
+    config = tomllib.load(f)
 os.environ["FORCE_COLOR"] = "1"
 
 logging.getLogger("openai").setLevel(logging.WARNING)
@@ -25,8 +26,8 @@ logger.addHandler(RichHandler(rich_tracebacks=True, level=logging.WARNING))
 # Устанавливаем поток вывода
 # sys.stdout.reconfigure(encoding="utf-8")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = config['openai']['api_key']
+TELEGRAM_BOT_TOKEN = config['telegram']['token']
 
 # Пример логирования
 logger.info("Configuration file loaded successfully.")
