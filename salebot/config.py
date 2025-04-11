@@ -26,9 +26,10 @@ logger.addHandler(RichHandler(rich_tracebacks=True, level=logging.WARNING))
 # Устанавливаем поток вывода
 # sys.stdout.reconfigure(encoding="utf-8")
 
-OPENAI_API_KEY = config['openai']['api_key']
+OPENAI_API_KEY: str = config['openai']['key']
 TELEGRAM_BOT_TOKEN = config['telegram']['token']
-
+logger.debug("Telegram bot token: %s", TELEGRAM_BOT_TOKEN)
+logger.debug("OPENAI_API_KEY: %s", OPENAI_API_KEY)
 # Пример логирования
 logger.info("Configuration file loaded successfully.")
 

@@ -7,8 +7,10 @@ from dotenv import load_dotenv
 import sys
 from autogen_core import ROOT_LOGGER_NAME
 from autogen_agentchat import EVENT_LOGGER_NAME, TRACE_LOGGER_NAME
+import tomllib
 
-load_dotenv()
+with open("config.toml", "rb") as f:
+    config = tomllib.load(f)
 os.environ["FORCE_COLOR"] = "1"
 
 logging.getLogger(ROOT_LOGGER_NAME).setLevel(logging.ERROR)
@@ -33,8 +35,8 @@ logger.addHandler(RichHandler(rich_tracebacks=True, level=logging.WARNING))
 # Устанавливаем поток вывода
 sys.stdout.reconfigure(encoding="utf-8")
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+OPENAI_API_KEY = config["openai"]["key"]
+TELEGRAM_BOT_TOKEN = config["telegram"]["token"]
 
 GPT_4O = OpenAIChatCompletionClient(
     api_key=OPENAI_API_KEY, model="gpt-4o", max_tokens=1024

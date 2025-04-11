@@ -1,12 +1,9 @@
 from sql_gpt import ask_database
 import os
 from agents import Agent, ModelSettings, set_default_openai_key, function_tool
-from dotenv import load_dotenv
 from prompt import personality_orchestrator, personality_synthesizer, qa
 from openai.types.shared import Reasoning
-load_dotenv()
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+from config import OPENAI_API_KEY
 set_default_openai_key(OPENAI_API_KEY)
 
 orchestrator_agent = Agent(

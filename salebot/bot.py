@@ -25,7 +25,6 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher()
 admins = [461923889, 1009474519]
 
-
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
     await message.answer("Привет! Напиши, что тебя интересует. Я передам это агентам.")
@@ -150,6 +149,7 @@ async def message_handler(message: types.Message):
 
 async def main():
     # Запускаем бота в режиме поллинга
+    await bot.delete_webhook(drop_pending_updates=True)
     polling_task = asyncio.create_task(dp.start_polling(bot))
 
     # Создаем и запускаем обработчик вебхуков
