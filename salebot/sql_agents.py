@@ -1,16 +1,13 @@
 from sql_gpt import ask_database
-import os
-from agents import Agent, ModelSettings, set_default_openai_key, function_tool
-from prompt import personality_orchestrator, personality_synthesizer, qa
-from openai.types.shared import Reasoning
-from config import OPENAI_API_KEY
+from agents import Agent, set_default_openai_key
+from config import OPENAI_API_KEY, OPENAI_MODEL, SYNTHESIZER_PROMPT, ORCHESTRATOR_PROMPT, QA_PROMPT
 set_default_openai_key(OPENAI_API_KEY)
 
 orchestrator_agent = Agent(
     name="orchestrator_agent",
     instructions=f"""
 
-    {personality_orchestrator}
+    {ORCHESTRATOR_PROMPT}
 
     Вот полная копия таблицы:
     ```markdown
@@ -18,11 +15,10 @@ orchestrator_agent = Agent(
     ```
     Вот список вопросов, что составил руководитель:
     ```markdown
-    {qa}
+    {QA_PROMPT}
     ```
     """,
-    model="o3-mini",
-    model_settings=ModelSettings(reasoning=Reasoning(effort='medium')),
+    model=OPENAI_MODEL,
 
 )
 
@@ -35,9 +31,8 @@ synthesizer_agent = Agent(
     {orchestrator_agent.name} может ошибаться. 
     Инструкции от руководителя по тому как этому менеджеру Алексею надо отвечать:
     ```markdown
-    {personality_synthesizer}
+    {SYNTHESIZER_PROMPT}
     ```
     """,
-    model="o3-mini",
-    model_settings=ModelSettings(reasoning=Reasoning(effort='low')), 
+    model=OPENAI_MODEL,
 )

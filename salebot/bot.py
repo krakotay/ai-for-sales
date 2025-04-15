@@ -4,7 +4,6 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, CommandStart
 from aiogram.enums.chat_action import ChatAction
 # from aiogram import F
-from webhook import WebhookHandler
 from sql_agents import orchestrator_agent, synthesizer_agent
 from config import TELEGRAM_BOT_TOKEN, logger
 from agents import (
@@ -152,19 +151,19 @@ async def main():
     await bot.delete_webhook(drop_pending_updates=True)
     polling_task = asyncio.create_task(dp.start_polling(bot))
 
-    # Создаем и запускаем обработчик вебхуков
-    webhook_handler = WebhookHandler(bot, dp)
+    # Если понадобится интеграция с кастомным webhook handler, раскомментируйте ниже:
+    # webhook_handler = WebhookHandler(bot, dp)
+    # webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
+    # await webhook_handler.start()
 
-    # Устанавливаем функцию обратного вызова для очистки истории разговоров
-    webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
-
-    # Запускаем веб-сервер асинхронно
-    await webhook_handler.start()
-    
     # Ждем завершения задачи поллинга
     await polling_task
 
+# Экспортируем функцию для остановки (заглушка, остановка через отмену task)
+def stop():
+    pass
 
 if __name__ == "__main__":
     print("Бот запущен. Жду сообщений...")
+    import asyncio
     asyncio.run(main())
