@@ -16,7 +16,7 @@ from agents import (
     trace,
 )
 
-TIMEOUT = 0
+TIMEOUT = 3
 
 
 # Telegram бот
@@ -123,6 +123,7 @@ async def maintain_typing_status(chat_id: int):
     # F.chat.id.in_(admins)
 )  # или @dp.message_handler() в зависимости от версии aiogram
 async def message_handler(message: types.Message):
+    await asyncio.sleep(0.1)
     chat_id = message.chat.id
     user_id = message.from_user.id
     user_text = message.text.strip()

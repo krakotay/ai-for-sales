@@ -77,7 +77,7 @@ with gr.Blocks(title="Панель управления SaleBot") as app:
     gr.Markdown("# Панель управления SaleBot")
     with gr.Tabs():
         with gr.TabItem("Вкл/Выкл бота"):
-            start_btn = gr.Button("Включить бота")
+            start_btn = gr.Button("(Пере)запустить бота")
             stop_btn = gr.Button("Остановить бота")
             status_box = gr.Textbox(label="Статус", interactive=False)
             start_btn.click(start_bot, outputs=status_box, show_progress=True)
@@ -99,7 +99,7 @@ with gr.Blocks(title="Панель управления SaleBot") as app:
                 outputs=[orchestrator_prompt_box, synthesizer_prompt_box],
                 show_progress=True,
             )
-
-app.launch(
-    server_name="127.0.0.1", server_port=8002, auth=("admin", "admin123admin!!!")
-)
+if __name__ == "__main__":
+    app.launch(
+        server_name="127.0.0.1", server_port=8002, auth=("admin", "admin123admin!!!")
+    )
