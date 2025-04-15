@@ -25,6 +25,7 @@ app = FastAPI()
 #     chat_id: str
 #     message: dict
 
+
 @app.post("/amo/webhook")
 async def handle_webhook(request: Request):
     try:
