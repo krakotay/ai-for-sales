@@ -147,23 +147,24 @@ async def message_handler(message: types.Message):
 
 
 async def main():
-    # Запускаем бота в режиме поллинга
-    await bot.delete_webhook(drop_pending_updates=True)
-    polling_task = asyncio.create_task(dp.start_polling(bot))
+    try:
+        # Перед запуском polling удаляем webhook, если он установлен
+        await bot.delete_webhook(drop_pending_updates=True)
+        # Запускаем polling
+        polling_task = asyncio.create_task(dp.start_polling(bot))
+        await polling_task
+    except asyncio.CancelledError:
+        # Если происходит отмена, аккуратно завершаем polling
+        print("Получена команда на остановку polling. Завершаем...")
+        # Для корректного завершения можно отменить polling_task, если он не завершен
+        # Мы уже в except CancelledError, так что polling_task должен быть отменен,
+        # но на всякий случай делаем:
+        polling_task.cancel()
+        try:
+            await polling_task
+        except asyncio.CancelledError:
+            print("Polling успешно отменён.")
+        # После корректного завершения пробрасываем исключение, чтобы таска завершилась
+        raise
 
-    # Если понадобится интеграция с кастомным webhook handler, раскомментируйте ниже:
-    # webhook_handler = WebhookHandler(bot, dp)
-    # webhook_handler.set_clear_conversation_history_callback(clear_conversation_history)
-    # await webhook_handler.start()
 
-    # Ждем завершения задачи поллинга
-    await polling_task
-
-# Экспортируем функцию для остановки (заглушка, остановка через отмену task)
-def stop():
-    pass
-
-if __name__ == "__main__":
-    print("Бот запущен. Жду сообщений...")
-    import asyncio
-    asyncio.run(main())

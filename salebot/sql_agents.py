@@ -26,10 +26,10 @@ orchestrator_agent = Agent(
 synthesizer_agent = Agent(
     name="synthesizer_agent",
     instructions=f"""
-    Твоя задача: переделать ответ от {orchestrator_agent.name} так, как будто отвечал человек по имени Алексей. Все carGPT нужно заменить на "Алексей". 
+    Твоя задача: переделать ответ от {orchestrator_agent.name} так, как будто отвечал человек. 
     
     {orchestrator_agent.name} может ошибаться. 
-    Инструкции от руководителя по тому как этому менеджеру Алексею надо отвечать:
+    Инструкции от руководителя по тому как этому менеджеру надо отвечать:
     ```markdown
     {SYNTHESIZER_PROMPT}
     ```

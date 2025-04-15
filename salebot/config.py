@@ -35,10 +35,14 @@ TELEGRAM_BOT_TOKEN: str = config.get('telegram', {}).get('token', "")
 ORCHESTRATOR_PROMPT: str = config.get('prompt', {}).get('orchestrator', "")
 SYNTHESIZER_PROMPT: str = config.get('prompt', {}).get('synthesizer', "")
 QA_PROMPT: str = config.get('prompt', {}).get('qa', "")
+
+WEBHOOK_PORT: int = config.get('webhook', {}).get('port', 8080)
 logger.debug("Telegram bot token: %s", TELEGRAM_BOT_TOKEN)
 logger.debug("OPENAI_API_KEY: %s", OPENAI_API_KEY)
 # Пример логирования
 logger.info("Configuration file loaded successfully.")
+def get_prompts():
+    return {"prompts" : config.get('prompt', {})}
 
 # --- Добавлено для webhook управления ---
 def update_prompts_in_toml(prompts: Dict[str, str]) -> bool:
@@ -51,25 +55,13 @@ def update_prompts_in_toml(prompts: Dict[str, str]) -> bool:
         current.setdefault("prompt", {})
         for k, v in prompts.items():
             current["prompt"][k] = v
-        with open("config.toml", "wb") as f:
+        with open("config.toml", "w") as f:
             toml.dump(current, f)
         return True
     except Exception as e:
         logger.error(f"Не удалось обновить config.toml: {e}")
         return False
 
-def reload_config():
-    """Перезагружает конфиг из config.toml"""
-    global config, OPENAI_API_KEY, OPENAI_MODEL, TELEGRAM_BOT_TOKEN, ORCHESTRATOR_PROMPT, SYNTHESIZER_PROMPT, QA_PROMPT
-    with open("config.toml", "rb") as f:
-        config = tomllib.load(f)
-    OPENAI_API_KEY = config.get('openai', {}).get('key', "")
-    OPENAI_MODEL = config.get('openai', {}).get('model', "")
-    TELEGRAM_BOT_TOKEN = config.get('telegram', {}).get('token', "")
-    ORCHESTRATOR_PROMPT = config.get('prompt', {}).get('orchestrator', "")
-    SYNTHESIZER_PROMPT = config.get('prompt', {}).get('synthesizer', "")
-    QA_PROMPT = config.get('prompt', {}).get('qa', "")
-    logger.info("Configuration reloaded from config.toml")
 
 class BotJson:
     name: str
