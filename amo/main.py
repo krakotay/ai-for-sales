@@ -1,5 +1,5 @@
 import tomllib
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 # import json
 import uvicorn
 import logging
@@ -17,7 +17,7 @@ with open("config.toml", "rb") as f:
 AMOCRM_DOMAIN = config['amo']['subdomain']
 SERVICE_ID = config['amo']['id']
 AUTH_TOKEN = config['amo']['auth']
-PORT: int = config.get('fastapi', {}).get('port', 8000)
+PORT: int = config.get('fastapi', {}).get('port', 8080)
 logger.info(f"Starting FastAPI server on port {PORT}")
 app = FastAPI()
 
@@ -25,7 +25,9 @@ app = FastAPI()
 #     chat_id: str
 #     message: dict
 
-
+@app.get("/amo/webhook")
+async def hello():
+    raise HTTPException(status_code=404, detail="Not Found")
 @app.post("/amo/webhook")
 async def handle_webhook(request: Request):
     try:
