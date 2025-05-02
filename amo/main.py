@@ -1,10 +1,7 @@
 import tomllib
 from fastapi import FastAPI, Request, HTTPException
-# import json
 import uvicorn
 import logging
-
-# from pydantic import BaseModel
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
@@ -21,37 +18,42 @@ PORT: int = config.get('fastapi', {}).get('port', 8080)
 logger.info(f"Starting FastAPI server on port {PORT}")
 app = FastAPI()
 
-# class AmoMessage(BaseModel):
-#     chat_id: str
-#     message: dict
-
 @app.get("/amo/webhook")
 async def hello():
     raise HTTPException(status_code=404, detail="Not Found")
+
 @app.post("/amo/webhook")
 async def handle_webhook(request: Request):
     try:
-        # Попробуем получить данные формы
         form_data = await request.form()
         if form_data:
-            logger.info(f"Received FORM data: {form_data}")
-            for key in form_data.keys():
-                values = form_data.getlist(key)
-                logger.info(f"Form key: {key}, values: {values}")
-                # Явно ищем текстовые сообщения
-                if any(isinstance(v, str) and ("message" in key.lower() or "text" in key.lower() or "body" in key.lower()) for v in values):
-                    logger.info(f"Possible user message in {key}: {values}")
-                # Также ищем 'прив' для отладки
-                if any("прив" in str(v).lower() for v in values):
-                    logger.info(f"Found 'прив' in {key}: {values}")
+            # Забираем contact_id
+            contact_ids = form_data.getlist("message[add][0][contact_id]")
+            if contact_ids and contact_ids[0] == '29205973':
+                # Это сообщение от вас
+                print(form_data)
+                author_names = form_data.getlist("message[add][0][author][name]")
+                texts = form_data.getlist("message[add][0][text]")
+                author = author_names[0] if author_names else "Unknown"
+                text = texts[0] if texts else ""
+
+                # Формируем простую таблицу
+                table = (
+                    "Имя       | Сообщение\n"
+                    "----------|----------\n"
+                    f"{author} | {text}"
+                )
+                logger.info("\n" + table)
+            else:
+                # Сообщение от кого-то другого
+                logger.info("Message from another person")
         else:
-            # Если форма пуста, пробуем JSON
+            # Если пришёл JSON (редко)
             data = await request.json()
             logger.info(f"Received JSON data: {data}")
     except Exception as e:
         logger.error(f"Error parsing request: {e}")
     return {"status": "ok"}
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", port=PORT, reload=True)
